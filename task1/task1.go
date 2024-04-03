@@ -2,7 +2,7 @@ package task1
 
 import (
 	"fmt"
-	"math/rand/v2"
+	"math/rand"
 	"strings"
 )
 
@@ -54,7 +54,7 @@ func populateJunctionTableSqlString() string {
 
 	for sourceId := 1; sourceId <= rowsToGeneratePerColumn; sourceId++ {
 
-		campaignsPerCurrentSource := rand.IntN(10)
+		campaignsPerCurrentSource := rand.Intn(10)
 
 		if campaignsPerCurrentSource == 0 {
 			continue
@@ -64,7 +64,7 @@ func populateJunctionTableSqlString() string {
 		generationSet := map[int]bool{}
 		for j < campaignsPerCurrentSource {
 
-			randomCompaignId := rand.IntN(rowsToGeneratePerColumn-1) + 1
+			randomCompaignId := rand.Intn(rowsToGeneratePerColumn) + 1
 
 			if !generationSet[randomCompaignId] {
 				fmt.Fprintf(&sqlStringBuilder, "(%v,%v),", sourceId, randomCompaignId)
