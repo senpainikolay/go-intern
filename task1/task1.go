@@ -14,9 +14,9 @@ func Run() {
 
 	InitDB()
 
-	db, _ /* truncateTablesClosure */ := NewDbConnection()
+	db, truncateTablesClosure := NewDbConnection()
 	defer db.Close()
-	//truncateTablesClosure()
+	truncateTablesClosure()
 	//defer truncateTablesClosure()
 
 	_, err := db.Exec(populateColumnSqlString("sources", "source"))
@@ -52,9 +52,14 @@ func populateJunctionTableSqlString() string {
 
 	sqlStringBuilder.WriteString("INSERT INTO sources_campaigns (source_id,campaign_id) VALUES ")
 
+	completeCampaignEliminated := map[int]bool{}
 	for sourceId := 1; sourceId <= rowsToGeneratePerColumn; sourceId++ {
 
 		campaignsPerCurrentSource := rand.Intn(10)
+
+		if campaignsPerCurrentSource <= 7 {
+			completeCampaignEliminated[rand.Intn(rowsToGeneratePerColumn)+1] = true
+		}
 
 		if campaignsPerCurrentSource == 0 {
 			continue
@@ -66,13 +71,11 @@ func populateJunctionTableSqlString() string {
 
 			randomCompaignId := rand.Intn(rowsToGeneratePerColumn) + 1
 
-			if !generationSet[randomCompaignId] {
+			if !generationSet[randomCompaignId] && !completeCampaignEliminated[randomCompaignId] {
 				fmt.Fprintf(&sqlStringBuilder, "(%v,%v),", sourceId, randomCompaignId)
 				generationSet[randomCompaignId] = true
-				j++
-			} else {
-				j--
 			}
+			j++
 		}
 	}
 
