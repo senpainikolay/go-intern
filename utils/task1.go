@@ -15,13 +15,15 @@ func GetRandomPopulateColumnSqlString(lastId int, tableName, entityName string) 
 
 	var sqlStringBuilder strings.Builder
 
+	recalculated_max_rows := rowsToGeneratePerColumn + lastId
+
 	fmt.Fprintf(&sqlStringBuilder, "INSERT INTO %s (name) VALUES ", tableName)
 
-	for i := lastId; i < rowsToGeneratePerColumn+lastId; i++ {
+	for i := lastId; i < recalculated_max_rows; i++ {
 		fmt.Fprintf(&sqlStringBuilder, "('%s%v'),", entityName, i)
 	}
 
-	fmt.Fprintf(&sqlStringBuilder, "('%s%v');", entityName, rowsToGeneratePerColumn)
+	fmt.Fprintf(&sqlStringBuilder, "('%s%v');", entityName, recalculated_max_rows)
 
 	return sqlStringBuilder.String()
 
