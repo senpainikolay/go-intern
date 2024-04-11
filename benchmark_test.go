@@ -27,7 +27,14 @@ func BenchmarkGetCampaignsPerMultipleSourceIDs(b *testing.B) {
 	defer db.Close()
 
 	repo := repository.NewGeneralRepository(db)
-	repo.PopulateRandomDB()
+	err := repo.TryCreate()
+	if err != nil {
+		panic(err)
+	}
+	err = repo.PopulateRandomDB()
+	if err != nil {
+		panic(err)
+	}
 	controller := controller.NewController(repo)
 
 	randomSourceIDs := []int{1, 2, 3, 10, 11, 12, 50, 51, 52, 60, 61, 62, 63, 70, 75, 90, 100}

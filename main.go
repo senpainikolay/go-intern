@@ -20,7 +20,11 @@ func main() {
 	defer db.Close()
 
 	generalRepository := repository.NewGeneralRepository(db)
-	err := generalRepository.PopulateRandomDB()
+	err := generalRepository.TryCreate()
+	if err != nil {
+		panic(err)
+	}
+	err = generalRepository.PopulateRandomDB()
 	if err != nil {
 		panic(err)
 	}
