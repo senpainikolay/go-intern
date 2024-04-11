@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/senpainikolay/go-tasks/models"
 	"github.com/senpainikolay/go-tasks/utils"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -53,7 +54,64 @@ func (repo *GeneralRepository) TryCreate() error {
 	return nil
 }
 
-func (repo *GeneralRepository) PopulateRandomSources() error {
+func (repo *GeneralRepository) GetCampaignsPerSourceId(id int) (models.Campaigns, error) {
+
+	rows, err := repo.dbClient.Query(`SELECT id, name
+								FROM campaigns c
+								JOIN sources_campaigns sc ON sc.campaign_id = c.id
+								WHERE sc.source_id = ?
+	                           `, id)
+	if err != nil {
+		return models.Campaigns{}, err
+	}
+	defer rows.Close()
+
+	var campaigns models.Campaigns
+
+	for rows.Next() {
+
+		var campaign models.Campaign
+
+		err := rows.Scan(&campaign.ID, &campaign.Name)
+		if err != nil {
+			return models.Campaigns{}, err
+		}
+
+		campaigns.Campaigns = append(campaigns.Campaigns, campaign)
+	}
+
+	if err := rows.Err(); err != nil {
+		return models.Campaigns{}, err
+	}
+
+	if len(campaigns.Campaigns) == 0 {
+		campaigns.Campaigns = make([]models.Campaign, 0)
+		return campaigns, nil
+	}
+
+	return campaigns, nil
+}
+
+func (repo *GeneralRepository) PopulateRandomDB() error {
+
+	err := repo.populateRandomSources()
+	if err != nil {
+		return err
+	}
+
+	err = repo.populateRandomCampaigns()
+	if err != nil {
+		return err
+	}
+
+	err = repo.populateRandomSourcesCampaigns()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (repo *GeneralRepository) populateRandomSources() error {
 
 	tableName := "sources"
 
@@ -68,7 +126,7 @@ func (repo *GeneralRepository) PopulateRandomSources() error {
 	}
 	return nil
 }
-func (repo *GeneralRepository) PopulateRandomCampaigns() error {
+func (repo *GeneralRepository) populateRandomCampaigns() error {
 
 	tableName := "campaigns"
 
@@ -84,7 +142,7 @@ func (repo *GeneralRepository) PopulateRandomCampaigns() error {
 	return nil
 }
 
-func (repo *GeneralRepository) PopulateRandomSourcesCampaigns() error {
+func (repo *GeneralRepository) populateRandomSourcesCampaigns() error {
 
 	err := repo.truncateSoucesCampaignsTable()
 	if err != nil {
