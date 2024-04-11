@@ -1,9 +1,34 @@
 package main
 
 import (
-	"github.com/senpainikolay/go-tasks/task1"
+	my_sql_db "github.com/senpainikolay/go-tasks/pkg"
+	"github.com/senpainikolay/go-tasks/repository"
 )
 
 func main() {
-	task1.Run()
+	db := my_sql_db.NewDbConnection()
+
+	defer db.Close()
+
+	generalRepository := repository.NewGeneralRepository(db)
+
+	err := generalRepository.TryCreate()
+	if err != nil {
+		panic(err)
+	}
+
+	err = generalRepository.PopulateRandomSources()
+	if err != nil {
+		panic(err)
+	}
+
+	err = generalRepository.PopulateRandomCampaigns()
+	if err != nil {
+		panic(err)
+	}
+
+	err = generalRepository.PopulateRandomSourcesCampaigns()
+	if err != nil {
+		panic(err)
+	}
 }

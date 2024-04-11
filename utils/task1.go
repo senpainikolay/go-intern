@@ -1,4 +1,4 @@
-package task1
+package utils
 
 import (
 	"fmt"
@@ -8,35 +8,16 @@ import (
 
 var (
 	rowsToGeneratePerColumn = 100
+	maxCampaignsPerSource   = 10
 )
 
-func Run() {
-
-	InitDB()
-
-	db, truncateTablesClosure := NewDbConnection()
-	defer db.Close()
-	truncateTablesClosure()
-	//defer truncateTablesClosure()
-
-	_, err := db.Exec(populateColumnSqlString("sources", "source"))
-	checkError(err)
-
-	_, err = db.Exec(populateColumnSqlString("campaigns", "campaign"))
-	checkError(err)
-
-	_, err = db.Exec(populateJunctionTableSqlString())
-	checkError(err)
-
-}
-
-func populateColumnSqlString(tableName, entityName string) string {
+func GetRandomPopulateColumnSqlString(lastId int, tableName, entityName string) string {
 
 	var sqlStringBuilder strings.Builder
 
 	fmt.Fprintf(&sqlStringBuilder, "INSERT INTO %s (name) VALUES ", tableName)
 
-	for i := 1; i < rowsToGeneratePerColumn; i++ {
+	for i := lastId; i < rowsToGeneratePerColumn+lastId; i++ {
 		fmt.Fprintf(&sqlStringBuilder, "('%s%v'),", entityName, i)
 	}
 
@@ -46,19 +27,19 @@ func populateColumnSqlString(tableName, entityName string) string {
 
 }
 
-func populateJunctionTableSqlString() string {
+func GetRandomPopulateJunctionTableSqlString(minSourceID, maxSouceID, minCampaignID, maxCampaignID int) string {
 
 	var sqlStringBuilder strings.Builder
 
 	sqlStringBuilder.WriteString("INSERT INTO sources_campaigns (source_id,campaign_id) VALUES ")
 
 	completeCampaignEliminated := map[int]bool{}
-	for sourceId := 1; sourceId <= rowsToGeneratePerColumn; sourceId++ {
+	for i := minSourceID; i <= maxSouceID; i++ {
 
-		campaignsPerCurrentSource := rand.Intn(10)
+		campaignsPerCurrentSource := rand.Intn(maxCampaignsPerSource)
 
 		if campaignsPerCurrentSource <= 7 {
-			completeCampaignEliminated[rand.Intn(rowsToGeneratePerColumn)+1] = true
+			completeCampaignEliminated[rand.Intn(maxSouceID)+minSourceID] = true
 		}
 
 		if campaignsPerCurrentSource == 0 {
@@ -69,10 +50,10 @@ func populateJunctionTableSqlString() string {
 		generationSet := map[int]bool{}
 		for j < campaignsPerCurrentSource {
 
-			randomCompaignId := rand.Intn(rowsToGeneratePerColumn) + 1
+			randomCompaignId := rand.Intn(maxCampaignID) + minCampaignID
 
 			if !generationSet[randomCompaignId] && !completeCampaignEliminated[randomCompaignId] {
-				fmt.Fprintf(&sqlStringBuilder, "(%v,%v),", sourceId, randomCompaignId)
+				fmt.Fprintf(&sqlStringBuilder, "(%v,%v),", i, randomCompaignId)
 				generationSet[randomCompaignId] = true
 			}
 			j++
