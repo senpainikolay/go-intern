@@ -5,20 +5,19 @@ import (
 	"io"
 	"math/rand"
 
-	"github.com/senpainikolay/go-tasks/models"
-
 	"os"
+
+	"github.com/senpainikolay/go-tasks/models"
 )
 
 type RandomDomainsSubdomains struct {
-	Domains    []string `json:"domains"`
-	Subdomains []string `json:"subdomains"`
+	Domains []string `json:"domains"`
 }
 
-func GetRandomDomainsJsonByteArr() ([]byte, bool) {
+func GetJsonByteArr() ([]byte, bool) {
 	domains := readRandomDomainsJSON()
 
-	var domainsPerCampaign models.CampaignDomains
+	domainsPerCampaign := make(map[string]struct{}, len(domains.Domains))
 
 	randomNumIterator := rand.Intn(len(domains.Domains))
 
@@ -26,40 +25,28 @@ func GetRandomDomainsJsonByteArr() ([]byte, bool) {
 
 		randomIndex := rand.Intn(len(domains.Domains))
 
-		// Random goes to WhiteList or Blocked
-		if rand.Intn(2)%2 == 0 {
-			// added for blocked
-			domainsPerCampaign.Blocked = append(domainsPerCampaign.Blocked, domains.Domains[randomIndex])
-			// Random To Inlcude Subdomain or not
-			if rand.Intn(2)%2 == 0 {
-				domainsPerCampaign.Blocked = append(domainsPerCampaign.Blocked, domains.Subdomains[randomIndex])
-			}
-		} else {
-			// added for white listed
-			domainsPerCampaign.WhiteListed = append(domainsPerCampaign.WhiteListed, domains.Domains[randomIndex])
-			// Random To Inlcude Subdomain or not
-			if rand.Intn(2)%2 == 0 {
-				domainsPerCampaign.WhiteListed = append(domainsPerCampaign.WhiteListed, domains.Subdomains[randomIndex])
-			}
-		}
+		domainsPerCampaign[domains.Domains[randomIndex]] = struct{}{}
 
-		// shrink the domains slice
+		// shrinking
 		domains.Domains = append(domains.Domains[:randomIndex], domains.Domains[randomIndex+1:]...)
-		domains.Subdomains = append(domains.Subdomains[:randomIndex], domains.Subdomains[randomIndex+1:]...)
 
 	}
 
-	if len(domainsPerCampaign.Blocked) == 0 && len(domainsPerCampaign.WhiteListed) == 0 {
+	if len(domainsPerCampaign) == 0 {
 		return nil, false
 	}
 
-	jsonData, err := json.Marshal(domainsPerCampaign)
+	type_filter := "white"
+	if rand.Intn(2)%2 == 0 {
+		type_filter = "black"
+	}
+
+	jsonData, err := json.Marshal(models.Domains{Type: type_filter, Data: domainsPerCampaign})
 	if err != nil {
-		panic(jsonData)
+		panic(err)
 	}
 
 	return jsonData, true
-
 }
 
 func readRandomDomainsJSON() RandomDomainsSubdomains {

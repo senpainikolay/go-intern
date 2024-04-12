@@ -9,19 +9,8 @@
       "ebay.com",
       "spotify.com",
       "apple.com",
-      "microsoft.com"
-    ],
-    "subdomains": [
-      "blog.google.com",
-      "developer.facebook.com",
-      "prime.amazon.com",
-      "api.twitter.com",
-      "jobs.linkedin.com",
-      "news.reddit.com",
-      "shop.ebay.com",
-      "playlist.spotify.com",
-      "support.apple.com",
-      "store.microsoft.com"
+      "microsoft.com",
+      "yahoo.com"
     ]
 }
   

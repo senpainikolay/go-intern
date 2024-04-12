@@ -9,7 +9,7 @@ type Campaigns struct {
 	Campaigns []Campaign `json:"compaigns"`
 }
 
-type CampaignDomains struct {
-	Blocked     []string `json:"blocked"`
-	WhiteListed []string `json:"white_listed"`
+type Domains struct {
+	Type string              `json:"type_filter"`
+	Data map[string]struct{} `json:"list"`
 }

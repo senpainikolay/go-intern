@@ -39,7 +39,7 @@ func GetRandomPopulateCampaignSqlString(lastId int) string {
 
 	for i := lastId; i < recalculated_max_rows; i++ {
 
-		if jsonByteArr, ok := GetRandomDomainsJsonByteArr(); ok {
+		if jsonByteArr, ok := GetJsonByteArr(); ok {
 			fmt.Fprintf(&sqlStringBuilder, "('campaign%v', '%s'),", i, string(jsonByteArr))
 		} else {
 			fmt.Fprintf(&sqlStringBuilder, "('campaign%v', NULL ),", i)
