@@ -8,3 +8,8 @@ type Campaign struct {
 type Campaigns struct {
 	Campaigns []Campaign `json:"compaigns"`
 }
+
+type CampaignDomains struct {
+	Blocked     []string `json:"blocked"`
+	WhiteListed []string `json:"white_listed"`
+}

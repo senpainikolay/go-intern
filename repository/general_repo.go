@@ -34,8 +34,9 @@ func (repo *GeneralRepository) TryCreate() error {
 	_, err = repo.dbClient.Exec(`
 	    CREATE TABLE IF NOT EXISTS campaigns (
 		id INT AUTO_INCREMENT PRIMARY KEY,
-		name VARCHAR(100) NOT NULL);
-		`)
+		name VARCHAR(100) NOT NULL,
+		domains JSON
+	    );`)
 	if err != nil {
 		return err
 	}
@@ -57,10 +58,10 @@ func (repo *GeneralRepository) TryCreate() error {
 func (repo *GeneralRepository) GetCampaignsPerSourceId(id int) (models.Campaigns, error) {
 
 	rows, err := repo.dbClient.Query(`SELECT id, name
-								FROM campaigns c
-								JOIN sources_campaigns sc ON sc.campaign_id = c.id
-								WHERE sc.source_id = ?
-	                           `, id)
+									FROM campaigns c
+									JOIN sources_campaigns sc ON sc.campaign_id = c.id
+									WHERE sc.source_id = ?
+								   `, id)
 	if err != nil {
 		return models.Campaigns{}, err
 	}
@@ -135,7 +136,7 @@ func (repo *GeneralRepository) populateRandomCampaigns() error {
 		return err
 	}
 
-	_, err = repo.dbClient.Exec(utils.GetRandomPopulateColumnSqlString(lastCampaignId+1, tableName, "campaign"))
+	_, err = repo.dbClient.Exec(utils.GetRandomPopulateCampaignSqlString(lastCampaignId + 1))
 	if err != nil {
 		return err
 	}

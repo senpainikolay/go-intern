@@ -29,6 +29,30 @@ func GetRandomPopulateColumnSqlString(lastId int, tableName, entityName string) 
 
 }
 
+func GetRandomPopulateCampaignSqlString(lastId int) string {
+
+	var sqlStringBuilder strings.Builder
+
+	recalculated_max_rows := rowsToGeneratePerColumn + lastId
+
+	fmt.Fprintf(&sqlStringBuilder, "INSERT INTO campaigns (name,domains) VALUES ")
+
+	for i := lastId; i < recalculated_max_rows; i++ {
+
+		if jsonByteArr, ok := GetRandomDomainsJsonByteArr(); ok {
+			fmt.Fprintf(&sqlStringBuilder, "('campaign%v', '%s'),", i, string(jsonByteArr))
+		} else {
+			fmt.Fprintf(&sqlStringBuilder, "('campaign%v', NULL ),", i)
+		}
+
+	}
+
+	fmt.Fprintf(&sqlStringBuilder, "('campaign%v', NULL);", recalculated_max_rows)
+
+	return sqlStringBuilder.String()
+
+}
+
 func GetRandomPopulateJunctionTableSqlString(minSourceID, maxSouceID, minCampaignID, maxCampaignID int) string {
 
 	var sqlStringBuilder strings.Builder
