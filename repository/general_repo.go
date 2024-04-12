@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/senpainikolay/go-tasks/models"
@@ -87,6 +88,79 @@ func (repo *GeneralRepository) GetCampaignsPerSourceId(id int) (models.Campaigns
 
 	if len(campaigns.Campaigns) == 0 {
 		campaigns.Campaigns = make([]models.Campaign, 0)
+		return campaigns, nil
+	}
+
+	return campaigns, nil
+}
+func (repo *GeneralRepository) GetCampaignsWithDomainsPerSourceIdAndFilterByType(id int, domain string) (models.Campaigns, error) {
+
+	compaignsBySourceIdWithDomains, err := repo.getCampaignsWithDomainsPerSourceId(id)
+	if err != nil {
+		return models.Campaigns{}, err
+	}
+
+	res := models.Campaigns{Campaigns: make([]models.Campaign, 0)}
+
+	for i := 0; i < len(compaignsBySourceIdWithDomains.Campaigns); i++ {
+
+		if compaignsBySourceIdWithDomains.Campaigns[i].Domains.Type == "black" {
+
+			if _, ok := compaignsBySourceIdWithDomains.Campaigns[i].Domains.Data[domain]; !ok {
+				res.Campaigns = append(res.Campaigns, models.Campaign{ID: compaignsBySourceIdWithDomains.Campaigns[i].ID, Name: compaignsBySourceIdWithDomains.Campaigns[i].Name})
+
+			}
+
+		} else { // Type == "white"
+			if _, ok := compaignsBySourceIdWithDomains.Campaigns[i].Domains.Data[domain]; ok {
+				res.Campaigns = append(res.Campaigns, models.Campaign{ID: compaignsBySourceIdWithDomains.Campaigns[i].ID, Name: compaignsBySourceIdWithDomains.Campaigns[i].Name})
+			}
+
+		}
+
+	}
+
+	return res, nil
+}
+
+func (repo *GeneralRepository) getCampaignsWithDomainsPerSourceId(id int) (models.CampaignsWithDomain, error) {
+
+	rows, err := repo.dbClient.Query(`SELECT id, name, domains
+									FROM campaigns c
+									JOIN sources_campaigns sc ON sc.campaign_id = c.id
+									WHERE sc.source_id = ? and domains is not NULL
+								   `, id)
+	if err != nil {
+		return models.CampaignsWithDomain{}, err
+	}
+	defer rows.Close()
+
+	var campaigns models.CampaignsWithDomain
+
+	for rows.Next() {
+
+		var campaign models.CampaignWithDomains
+
+		var byteJSONData []byte
+
+		err := rows.Scan(&campaign.ID, &campaign.Name, &byteJSONData)
+		if err != nil {
+			return models.CampaignsWithDomain{}, err
+		}
+		err = json.Unmarshal(byteJSONData, &campaign.Domains)
+		if err != nil {
+			panic(err)
+		}
+
+		campaigns.Campaigns = append(campaigns.Campaigns, campaign)
+	}
+
+	if err := rows.Err(); err != nil {
+		return models.CampaignsWithDomain{}, err
+	}
+
+	if len(campaigns.Campaigns) == 0 {
+		campaigns.Campaigns = make([]models.CampaignWithDomains, 0)
 		return campaigns, nil
 	}
 

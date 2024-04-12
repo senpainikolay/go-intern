@@ -6,7 +6,16 @@ type Campaign struct {
 }
 
 type Campaigns struct {
-	Campaigns []Campaign `json:"compaigns"`
+	Campaigns []Campaign `json:"campaigns"`
+}
+
+type CampaignWithDomains struct {
+	Campaign
+	Domains Domains
+}
+
+type CampaignsWithDomain struct {
+	Campaigns []CampaignWithDomains `json:"campaigns"`
 }
 
 type Domains struct {
