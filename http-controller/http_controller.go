@@ -29,9 +29,7 @@ func (c *GeneralController) GetCampaginsPerSource(ctx *fasthttp.RequestCtx) {
 
 	sourceId, err := strconv.Atoi(string(sourceIdStr))
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		ctx.Write(returnJsonBytesErr("invalid id format or missing"))
-		return
+		ctx.Error("invalid id format or missing", fasthttp.StatusBadRequest)
 	}
 
 	if cachedVal, ok := c.campaignsPerSorceIdCache.Load(sourceId); ok {
@@ -40,16 +38,12 @@ func (c *GeneralController) GetCampaginsPerSource(ctx *fasthttp.RequestCtx) {
 			ctx.Write(campaignsJsonBytesCached)
 			return
 		}
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.Write(returnJsonBytesErr("something wroing with converting the cached value"))
-		return
+		ctx.Error("something wroing with converting the cached value", fasthttp.StatusInternalServerError)
 	}
 
 	compagins, err := c.repo.GetCampaignsPerSourceId(sourceId)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.Write(returnJsonBytesErr(err.Error()))
-		return
+		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 	}
 
 	jsonBytes, err := json.Marshal(compagins)
@@ -60,23 +54,6 @@ func (c *GeneralController) GetCampaginsPerSource(ctx *fasthttp.RequestCtx) {
 	c.campaignsPerSorceIdCache.Store(sourceId, jsonBytes)
 
 	ctx.Write(jsonBytes)
-
-}
-
-func returnJsonBytesErr(errStr string) []byte {
-
-	jsonBytes, err := json.Marshal(struct {
-		Error bool   `json:"error"`
-		Msg   string `json:"msg"`
-	}{
-		Error: true,
-		Msg:   errStr,
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	return jsonBytes
 
 }
 
