@@ -18,5 +18,15 @@ go run .
 
 ##### Running the test:
 ```
-go test -bench=BenchmarkGetCampaignsPerMultipleSourceIDs
+go test -bench=BenchmarkGetCampaginsPerSource ./http-controller/
+``` 
+
+## Task 3
+
+- The logic is shown in /repository 
+- The unit test is in ./http-controller/controller_test.go
+
+##### Running the test:
 ```
+go test ./http-controller/
+``` 
