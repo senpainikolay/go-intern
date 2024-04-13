@@ -10,8 +10,9 @@ type Campaigns struct {
 }
 
 type CampaignWithDomains struct {
-	Campaign
-	Domains Domains
+	ID      int     `json:"id"`
+	Name    string  `json:"name"`
+	Domains Domains `json:"domains"`
 }
 
 type CampaignsWithDomain struct {

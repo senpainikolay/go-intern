@@ -26,7 +26,7 @@ func (repo *GeneralRepository) TryCreate() error {
 	_, err := repo.dbClient.Exec(`
 	    CREATE TABLE IF NOT EXISTS sources (
 		id INT AUTO_INCREMENT PRIMARY KEY,
-		name VARCHAR(100) NOT NULL);
+		name VARCHAR(100) NOT NULL UNIQUE);
 		`)
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func (repo *GeneralRepository) TryCreate() error {
 	_, err = repo.dbClient.Exec(`
 	    CREATE TABLE IF NOT EXISTS campaigns (
 		id INT AUTO_INCREMENT PRIMARY KEY,
-		name VARCHAR(100) NOT NULL,
+		name VARCHAR(100) NOT NULL UNIQUE,
 		domains JSON
 	    );`)
 	if err != nil {
@@ -47,8 +47,8 @@ func (repo *GeneralRepository) TryCreate() error {
 		source_id INT NOT NULL, 
 		campaign_id INT NOT NULL, 
 		PRIMARY KEY (source_id, campaign_id),
-		FOREIGN KEY (source_id) REFERENCES sources(id),
-		FOREIGN KEY (campaign_id) REFERENCES campaigns(id) );
+		FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE,
+		FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE );
 		`)
 	if err != nil {
 		return err
@@ -93,6 +93,66 @@ func (repo *GeneralRepository) GetCampaignsPerSourceId(id int) (models.Campaigns
 
 	return campaigns, nil
 }
+
+func (repo *GeneralRepository) InsertCampaignWithDomains(cwd models.CampaignWithDomains) (int, error) {
+
+	jsonData, err := json.Marshal(cwd.Domains)
+	if err != nil {
+		return 0, err
+	}
+
+	sqlRes, err := repo.dbClient.Exec(` INSERT INTO campaigns (name,domains) VALUES ( ? , ?  )`, cwd.Name, string(jsonData))
+	if err != nil {
+		return 0, err
+	}
+	lastId, err := sqlRes.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(lastId), nil
+}
+
+func (repo *GeneralRepository) InsertSource(sourceName string) (int, error) {
+
+	sqlRes, err := repo.dbClient.Exec(` INSERT INTO sources (name) VALUES ( ? )`, sourceName)
+	if err != nil {
+		return 0, err
+	}
+	lastId, err := sqlRes.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(lastId), nil
+}
+
+func (repo *GeneralRepository) DeleteSourceByID(id int) error {
+
+	_, err := repo.dbClient.Exec(` DELETE FROM sources WHERE id = ? `, id)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+func (repo *GeneralRepository) DeleteCampaignByID(id int) error {
+
+	_, err := repo.dbClient.Exec(` DELETE FROM campaigns WHERE id = ? `, id)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
+func (repo *GeneralRepository) InsertSourceCampaign(sourceId, campaignId int) error {
+
+	_, err := repo.dbClient.Exec(` INSERT INTO sources_campaigns (source_id,campaign_id) VALUES ( ? , ?  )`, sourceId, campaignId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (repo *GeneralRepository) GetCampaignsWithDomainsPerSourceIdAndFilterByType(id int, domain string) (models.Campaigns, error) {
 
 	compaignsBySourceIdWithDomains, err := repo.getCampaignsWithDomainsPerSourceId(id)
