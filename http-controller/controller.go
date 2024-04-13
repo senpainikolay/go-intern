@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/senpainikolay/go-tasks/repository"
@@ -29,8 +30,7 @@ func (c *GeneralController) GetCampaginsPerSource(ctx *fasthttp.RequestCtx) {
 
 	sourceId, err := strconv.Atoi(string(sourceIdStr))
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		ctx.Write(returnJsonBytesErr("invalid id format or missing"))
+		ctx.Error("invalid id format or missing", fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -40,15 +40,11 @@ func (c *GeneralController) GetCampaginsPerSource(ctx *fasthttp.RequestCtx) {
 			ctx.Write(campaignsJsonBytesCached)
 			return
 		}
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.Write(returnJsonBytesErr("something wroing with converting the cached value"))
-		return
 	}
 
 	compagins, err := c.repo.GetCampaignsPerSourceId(sourceId)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.Write(returnJsonBytesErr(err.Error()))
+		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
 	}
 
@@ -59,24 +55,49 @@ func (c *GeneralController) GetCampaginsPerSource(ctx *fasthttp.RequestCtx) {
 	}
 	c.campaignsPerSorceIdCache.Store(sourceId, jsonBytes)
 
+	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.Write(jsonBytes)
 
 }
 
-func returnJsonBytesErr(errStr string) []byte {
+func (c *GeneralController) GetCampaignsWithDomainsPerSourceIdAndFilterByType(ctx *fasthttp.RequestCtx) {
 
-	jsonBytes, err := json.Marshal(struct {
-		Error bool   `json:"error"`
-		Msg   string `json:"msg"`
-	}{
-		Error: true,
-		Msg:   errStr,
-	})
+	sourceIdStr := ctx.QueryArgs().Peek("id")
+
+	ctx.Response.Header.Set("Content-Type", "application/json")
+
+	sourceId, err := strconv.Atoi(string(sourceIdStr))
 	if err != nil {
-		panic(err)
+		ctx.Error("invalid id format or missing", fasthttp.StatusBadRequest)
+		return
 	}
 
-	return jsonBytes
+	domainBytes := ctx.QueryArgs().Peek("domain")
+	if len(domainBytes) == 0 {
+		ctx.Error("no domain specified", fasthttp.StatusInternalServerError)
+		return
+	}
+	domainStr := strings.ToLower(string(domainBytes))
+	res := strings.Split(domainStr, ".")
+	if len(res) < 2 {
+		ctx.Error("invalid domain", fasthttp.StatusInternalServerError)
+		return
+	}
+	domainStr = res[len(res)-2] + "." + res[len(res)-1]
+
+	compagins, err := c.repo.GetCampaignsWithDomainsPerSourceIdAndFilterByType(sourceId, domainStr)
+	if err != nil {
+		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+		return
+	}
+
+	jsonBytes, err := json.Marshal(compagins)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		panic(err)
+	}
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Write(jsonBytes)
 
 }
 
@@ -86,6 +107,9 @@ func Serve(c *GeneralController, port string) {
 		switch string(ctx.Path()) {
 		case "/campaignsBySource":
 			c.GetCampaginsPerSource(ctx)
+		case "/capaignsDomainsPerSource":
+			c.GetCampaignsWithDomainsPerSourceIdAndFilterByType(ctx)
+
 		default:
 			ctx.Error("not found", fasthttp.StatusNotFound)
 		}

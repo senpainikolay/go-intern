@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/senpainikolay/go-tasks/models"
@@ -25,7 +26,7 @@ func (repo *GeneralRepository) TryCreate() error {
 	_, err := repo.dbClient.Exec(`
 	    CREATE TABLE IF NOT EXISTS sources (
 		id INT AUTO_INCREMENT PRIMARY KEY,
-		name VARCHAR(100) NOT NULL);
+		name VARCHAR(100) NOT NULL UNIQUE);
 		`)
 	if err != nil {
 		return err
@@ -34,8 +35,9 @@ func (repo *GeneralRepository) TryCreate() error {
 	_, err = repo.dbClient.Exec(`
 	    CREATE TABLE IF NOT EXISTS campaigns (
 		id INT AUTO_INCREMENT PRIMARY KEY,
-		name VARCHAR(100) NOT NULL);
-		`)
+		name VARCHAR(100) NOT NULL UNIQUE,
+		domains JSON
+	    );`)
 	if err != nil {
 		return err
 	}
@@ -45,8 +47,8 @@ func (repo *GeneralRepository) TryCreate() error {
 		source_id INT NOT NULL, 
 		campaign_id INT NOT NULL, 
 		PRIMARY KEY (source_id, campaign_id),
-		FOREIGN KEY (source_id) REFERENCES sources(id),
-		FOREIGN KEY (campaign_id) REFERENCES campaigns(id) );
+		FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE,
+		FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE );
 		`)
 	if err != nil {
 		return err
@@ -57,10 +59,10 @@ func (repo *GeneralRepository) TryCreate() error {
 func (repo *GeneralRepository) GetCampaignsPerSourceId(id int) (models.Campaigns, error) {
 
 	rows, err := repo.dbClient.Query(`SELECT id, name
-								FROM campaigns c
-								JOIN sources_campaigns sc ON sc.campaign_id = c.id
-								WHERE sc.source_id = ?
-	                           `, id)
+									FROM campaigns c
+									JOIN sources_campaigns sc ON sc.campaign_id = c.id
+									WHERE sc.source_id = ?
+								   `, id)
 	if err != nil {
 		return models.Campaigns{}, err
 	}
@@ -86,6 +88,139 @@ func (repo *GeneralRepository) GetCampaignsPerSourceId(id int) (models.Campaigns
 
 	if len(campaigns.Campaigns) == 0 {
 		campaigns.Campaigns = make([]models.Campaign, 0)
+		return campaigns, nil
+	}
+
+	return campaigns, nil
+}
+
+func (repo *GeneralRepository) InsertCampaignWithDomains(cwd models.CampaignWithDomains) (int, error) {
+
+	jsonData, err := json.Marshal(cwd.Domains)
+	if err != nil {
+		return 0, err
+	}
+
+	sqlRes, err := repo.dbClient.Exec(` INSERT INTO campaigns (name,domains) VALUES ( ? , ?  )`, cwd.Name, string(jsonData))
+	if err != nil {
+		return 0, err
+	}
+	lastId, err := sqlRes.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(lastId), nil
+}
+
+func (repo *GeneralRepository) InsertSource(sourceName string) (int, error) {
+
+	sqlRes, err := repo.dbClient.Exec(` INSERT INTO sources (name) VALUES ( ? )`, sourceName)
+	if err != nil {
+		return 0, err
+	}
+	lastId, err := sqlRes.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return int(lastId), nil
+}
+
+func (repo *GeneralRepository) DeleteSourceByID(id int) error {
+
+	_, err := repo.dbClient.Exec(` DELETE FROM sources WHERE id = ? `, id)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+func (repo *GeneralRepository) DeleteCampaignByID(id int) error {
+
+	_, err := repo.dbClient.Exec(` DELETE FROM campaigns WHERE id = ? `, id)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
+func (repo *GeneralRepository) InsertSourceCampaign(sourceId, campaignId int) error {
+
+	_, err := repo.dbClient.Exec(` INSERT INTO sources_campaigns (source_id,campaign_id) VALUES ( ? , ?  )`, sourceId, campaignId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (repo *GeneralRepository) GetCampaignsWithDomainsPerSourceIdAndFilterByType(id int, domain string) (models.Campaigns, error) {
+
+	compaignsBySourceIdWithDomains, err := repo.getCampaignsWithDomainsPerSourceId(id)
+	if err != nil {
+		return models.Campaigns{}, err
+	}
+
+	res := models.Campaigns{Campaigns: make([]models.Campaign, 0)}
+
+	for i := 0; i < len(compaignsBySourceIdWithDomains.Campaigns); i++ {
+
+		if compaignsBySourceIdWithDomains.Campaigns[i].Domains.Type == "black" {
+
+			if _, ok := compaignsBySourceIdWithDomains.Campaigns[i].Domains.Data[domain]; !ok {
+				res.Campaigns = append(res.Campaigns, models.Campaign{ID: compaignsBySourceIdWithDomains.Campaigns[i].ID, Name: compaignsBySourceIdWithDomains.Campaigns[i].Name})
+
+			}
+
+		} else { // Type == "white"
+			if _, ok := compaignsBySourceIdWithDomains.Campaigns[i].Domains.Data[domain]; ok {
+				res.Campaigns = append(res.Campaigns, models.Campaign{ID: compaignsBySourceIdWithDomains.Campaigns[i].ID, Name: compaignsBySourceIdWithDomains.Campaigns[i].Name})
+			}
+
+		}
+
+	}
+
+	return res, nil
+}
+
+func (repo *GeneralRepository) getCampaignsWithDomainsPerSourceId(id int) (models.CampaignsWithDomain, error) {
+
+	rows, err := repo.dbClient.Query(`SELECT id, name, domains
+									FROM campaigns c
+									JOIN sources_campaigns sc ON sc.campaign_id = c.id
+									WHERE sc.source_id = ? and domains is not NULL
+								   `, id)
+	if err != nil {
+		return models.CampaignsWithDomain{}, err
+	}
+	defer rows.Close()
+
+	var campaigns models.CampaignsWithDomain
+
+	for rows.Next() {
+
+		var campaign models.CampaignWithDomains
+
+		var byteJSONData []byte
+
+		err := rows.Scan(&campaign.ID, &campaign.Name, &byteJSONData)
+		if err != nil {
+			return models.CampaignsWithDomain{}, err
+		}
+		err = json.Unmarshal(byteJSONData, &campaign.Domains)
+		if err != nil {
+			panic(err)
+		}
+
+		campaigns.Campaigns = append(campaigns.Campaigns, campaign)
+	}
+
+	if err := rows.Err(); err != nil {
+		return models.CampaignsWithDomain{}, err
+	}
+
+	if len(campaigns.Campaigns) == 0 {
+		campaigns.Campaigns = make([]models.CampaignWithDomains, 0)
 		return campaigns, nil
 	}
 
@@ -135,7 +270,7 @@ func (repo *GeneralRepository) populateRandomCampaigns() error {
 		return err
 	}
 
-	_, err = repo.dbClient.Exec(utils.GetRandomPopulateColumnSqlString(lastCampaignId+1, tableName, "campaign"))
+	_, err = repo.dbClient.Exec(utils.GetRandomPopulateCampaignSqlString(lastCampaignId + 1))
 	if err != nil {
 		return err
 	}
