@@ -3,7 +3,7 @@
 
 After playing around with profiling, I detected that storing the json in database, marshaling and unmarshaling it has some costs on throughput:
 
-![Screenshot 1](photos/jsonops.jpg)  
+![Screenshot 1](photos/jsonobs.jpg)  
 
 
 Mostly dynamic allocations has their logic because of uncertainity of data to come. The only change ( a very little and banal one ) would be allocating the size of random domains read from json if known before processing. 
@@ -11,9 +11,11 @@ Mostly dynamic allocations has their logic because of uncertainity of data to co
 ![Screenshot 1](photos/1mod.jpg)  
 
 Before: 
+
 ![Screenshot 1](photos/1.jpg)  
 
 After: 
+
 ![Screenshot 1](photos/1after.jpg)  
 
 
