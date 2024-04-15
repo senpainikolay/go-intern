@@ -8,6 +8,8 @@ import (
 
 	"github.com/senpainikolay/go-tasks/repository"
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/pprofhandler"
+	_ "github.com/valyala/fasthttp/pprofhandler"
 )
 
 type GeneralController struct {
@@ -21,7 +23,6 @@ func NewController(repo *repository.GeneralRepository) *GeneralController {
 		campaignsPerSorceIdCache: sync.Map{},
 	}
 }
-
 func (c *GeneralController) GetCampaginsPerSource(ctx *fasthttp.RequestCtx) {
 
 	sourceIdStr := ctx.QueryArgs().Peek("id")
@@ -109,7 +110,10 @@ func Serve(c *GeneralController, port string) {
 			c.GetCampaginsPerSource(ctx)
 		case "/capaignsDomainsPerSource":
 			c.GetCampaignsWithDomainsPerSourceIdAndFilterByType(ctx)
-
+		case "/debug/pprof/profile":
+			pprofhandler.PprofHandler(ctx)
+		case "/debug/pprof/heap":
+			pprofhandler.PprofHandler(ctx)
 		default:
 			ctx.Error("not found", fasthttp.StatusNotFound)
 		}

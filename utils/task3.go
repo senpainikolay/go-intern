@@ -66,7 +66,9 @@ func readRandomDomainsJSON() RandomDomainsSubdomains {
 		panic(err)
 	}
 
-	var domains RandomDomainsSubdomains
+	domains := RandomDomainsSubdomains{
+		Domains: make([]string, 11),
+	}
 	err = json.Unmarshal(jsonData, &domains)
 	if err != nil {
 		panic(err)

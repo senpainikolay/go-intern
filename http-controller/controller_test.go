@@ -14,6 +14,29 @@ import (
 	"github.com/senpainikolay/go-tasks/repository"
 )
 
+func BenchmarkFilterCampaignsOnSourceIDByDomain(b *testing.B) {
+	db := newTestDBConnection()
+	defer db.Close()
+
+	repo := repository.NewGeneralRepository(db)
+	err := repo.TryCreate()
+	if err != nil {
+		panic(err)
+	}
+	domain := "google.com"
+
+	sourceIDinDB, cleanUpDB := insertDataInDB(repo)
+	defer cleanUpDB()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		repo.GetCampaignsWithDomainsPerSourceIdAndFilterByType(sourceIDinDB, domain)
+
+	}
+
+}
+
 func BenchmarkGetCampaginsPerSource(b *testing.B) {
 	db := newTestDBConnection()
 	defer db.Close()
@@ -27,12 +50,11 @@ func BenchmarkGetCampaginsPerSource(b *testing.B) {
 	sourceIDinDB, cleanUpDB := insertDataInDB(repo)
 	defer cleanUpDB()
 
-	controller := NewController(repo)
-
 	b.ResetTimer()
-	ctx := &fasthttp.RequestCtx{}
-	ctx.Request.SetRequestURI("/campaignsBySource?id=" + strconv.Itoa(sourceIDinDB))
-	controller.GetCampaginsPerSource(ctx)
+	for i := 0; i < b.N; i++ {
+
+		repo.GetCampaignsPerSourceId(sourceIDinDB)
+	}
 
 }
 
