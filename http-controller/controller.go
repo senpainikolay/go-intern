@@ -2,10 +2,14 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/senpainikolay/go-tasks/models"
 	"github.com/senpainikolay/go-tasks/repository"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
@@ -92,7 +96,41 @@ func (c *GeneralController) GetCampaignsWithDomainsPerSourceIdAndFilterByType(ct
 		return
 	}
 
-	jsonBytes, err := json.Marshal(compagins)
+	var wg sync.WaitGroup
+	wg.Add(len(compagins.Campaigns))
+
+	priceChan := make(chan models.MinPriceCampaign)
+	done := make(chan models.MinPriceCampaign)
+
+	go func() {
+		minPrice := models.MinPriceCampaign{Price: 9999999}
+		for p := range priceChan {
+			if p.Price < minPrice.Price {
+				minPrice = p
+			}
+		}
+		done <- minPrice
+	}()
+
+	for _, val := range compagins.Campaigns {
+		go func(cName string) {
+			defer wg.Done()
+			minPrice := callSleep()
+			priceChan <- models.MinPriceCampaign{Name: cName, Price: minPrice}
+		}(val.Name)
+	}
+
+	wg.Wait()
+	close(priceChan)
+
+	minPriceCampaign := <-done
+
+	finalRes := models.CampaignsWithSelectedMinPriceCampaign{
+		Campaigns:        compagins,
+		MinPriceCampaign: minPriceCampaign,
+	}
+
+	jsonBytes, err := json.Marshal(finalRes)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		panic(err)
@@ -100,6 +138,14 @@ func (c *GeneralController) GetCampaignsWithDomainsPerSourceIdAndFilterByType(ct
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.Write(jsonBytes)
 
+}
+
+func callSleep() int {
+	timeToSleep := rand.Intn(10)
+	randomPrice := rand.Intn(1000) + 100
+	time.Sleep(time.Duration(timeToSleep) * time.Second)
+	fmt.Printf("Sleeped: %v \n", timeToSleep)
+	return randomPrice
 }
 
 func Serve(c *GeneralController, port string) {
